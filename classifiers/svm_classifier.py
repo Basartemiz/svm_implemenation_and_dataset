@@ -153,30 +153,32 @@ def main():
             plt.title(f"t-SNE visualization (class {cls})")
             plt.show()
 
-    # similarity matrix between classes based on support-vector centroids (cosine similarity)
-    classes = list(svm_model.classes_)
-    centroids = []
-    valid = []
-    for cls in classes:
-        sv_X = svm_model.support_vectors.get(cls, None)
-        if sv_X is None or sv_X.size == 0:
-            centroids.append(np.full(X_train.shape[1], np.nan))
-            valid.append(False)
-        else:
-            centroids.append(np.mean(sv_X, axis=0))
-            valid.append(True)
-    centroids = np.vstack(centroids)
+    #make similarity matrix of support-vectors of 2 classes using cosine similarity
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    #get support vectors of each 2 class
+    import itertools
+    for cls1,cls2 in itertools.combinations(svm_model.classes_, 2):
+        if svm_model.support_vectors.get(cls1) is None or svm_model.support_vectors[cls1].size == 0:
+            print(f"No support vectors for class {cls1}, cannot compute centroid.")
+            return
+        if svm_model.support_vectors.get(cls2) is None or svm_model.support_vectors[cls2].size == 0:
+            print(f"No support vectors for class {cls2}, cannot compute centroid.")
+            return
+        sv_1=svm_model.support_vectors[cls1]
+        sv_2=svm_model.support_vectors[cls2]
 
-    norms = np.linalg.norm(centroids, axis=1, keepdims=True)
-    norms[norms == 0] = np.nan
-    centroids_normed = centroids / norms
-    similarity = centroids_normed @ centroids_normed.T
-    similarity[~np.isfinite(similarity)] = np.nan
+        #get cosine similarity between support vectors of 2 classes
+        sim_matrix=cosine_similarity(sv_1, sv_2)
+        print(f"Similarity matrix between support vectors of class {cls1} and class {cls2}:")
+        print(sim_matrix)
+        #get average similarity
+        print(f"Cosine similarity between support vectors of class {cls1} and class {cls2}: {np.mean(sim_matrix):.4f} and maximum similarity: {np.max(sim_matrix):.4f} and minimum similarity: {np.min(sim_matrix):.4f}")
 
-    import pandas as pd
-    sim_df = pd.DataFrame(similarity, index=classes, columns=classes)
-    print("\nSupport-vector centroid cosine similarity matrix:")
-    print(sim_df)
+       
+
+
+    
 
     #create confusion matrix that shows the performance of the classifier
     from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay

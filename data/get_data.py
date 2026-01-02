@@ -7,7 +7,7 @@ import hashlib
 import time
 
 # ---- CONFIG ----
-SERPAPI_KEY = "c7ef258490afcbc2052968b72e9b8a72254e358fe33bcbad5a401b8924ad4412"
+SERPAPI_KEY = ""
 
 queries_apple = [
     "apple",
