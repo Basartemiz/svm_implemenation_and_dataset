@@ -28,6 +28,10 @@ def main():
     # split data into train and test sets
     from sklearn.model_selection import train_test_split
 
+    #remove outliers from the dataset using isolation forest
+    from data.detect_outliers import detect_outliers_isolation_forest
+    X,y=detect_outliers_isolation_forest(X, y) # detect and remove outliers
+    
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42
     )

@@ -95,17 +95,7 @@ def main():
     for mean_score, params in results_sorted:
         print(f"Accuracy: {mean_score:.4f} | Parameters: {params}")
     
-    import matplotlib.pyplot as plt
-    from sklearn.manifold import TSNE
-    tsne = TSNE(n_components=2, random_state=42)
-    plt.figure(figsize=(8,6))
-    tsne_results = tsne.fit_transform(X)
-    scatter = plt.scatter(tsne_results[:,0], tsne_results[:,1], c=y, cmap='viridis', alpha=0.7)
-    plt.title("t-SNE of PCA of Fruit Images Dataset (After Outlier Removal)")
-    plt.xlabel("t-SNE Dimension 1")
-    plt.ylabel("t-SNE Dimension 2")
-    plt.colorbar(scatter, label='Class Label')
-    plt.show()
+    
 
     #save results to a csv file
     import pandas as pd

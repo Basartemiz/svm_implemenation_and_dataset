@@ -58,9 +58,14 @@ def main():
     cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
     from sklearn.model_selection import GridSearchCV
-
-    clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
-    clf.fit(X_train, y_train)
+    best_model_parameters={'svm__C': np.float64(0.0001), 'svm__degree': 2, 'svm__gamma': np.float64(2.782559402207126), 'svm__kernel': 'poly', 'svm__r': 10}
+    if(best_model is None):
+        clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
+        clf.fit(X_train, y_train)
+    else:
+        pipeline.set_params(**best_model_parameters)
+        clf=pipeline
+        clf.fit(X_train, y_train)
 
     #see results
 

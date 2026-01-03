@@ -40,5 +40,16 @@ def main():
     plt.colorbar(scatter, label='Cluster Label')
     plt.show()
 
+
+    #evaluate clustering performance using silhouette score
+    from sklearn.metrics import silhouette_score
+    silhouette_avg = silhouette_score(X_pca, y_pred)
+    print("Silhouette Score: ", silhouette_avg)
+
+    #evaluate clustering performance using adjusted rand index
+    from sklearn.metrics import adjusted_rand_score
+    ari = adjusted_rand_score(y, y_pred)
+    print("Adjusted Rand Index: ", ari)
+
 if __name__ == "__main__":
     main()
