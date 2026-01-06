@@ -17,9 +17,9 @@ def main():
     X, y = load_data(data_path, image_size=(64, 64))
 
 
-    #remove outliers from the dataset using isolation forest
-    from data.detect_outliers import detect_outliers_isolation_forest
-    X,y=detect_outliers_isolation_forest(X, y) # detect and remove outliers
+    #remove outliers from the dataset using HDBSCAN and KMeans
+    from data.detect_outliers import detect_outliers
+    X, y = detect_outliers(X, y) # detect and remove outliers
 
 
     # split data into train and test sets
