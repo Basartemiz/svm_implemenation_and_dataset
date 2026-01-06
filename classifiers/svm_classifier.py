@@ -1,17 +1,23 @@
 #use the custom load_data function from data/preprocess.py and svms from our own custom svm module
 
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
+import os
+import sys
+
+# Add project root to path before imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from data.preprocess import load_data
 from svm.svm import MultiClassSVM
-import os
-import sys
 import numpy as np
 from sklearn.metrics import accuracy_score
 
 def main():
     # get data (X,y)
-    import os
-
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     data_path = os.path.join(project_root, "data", "fruit_images")
     X, y = load_data(data_path, image_size=(64, 64))
