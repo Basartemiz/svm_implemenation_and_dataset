@@ -80,7 +80,16 @@ def main():
         }
     ]
     
-    clf = BayesSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1, scoring='accuracy', n_iter=50, random_state=42)
+    clf = BayesSearchCV(
+        pipeline,
+        param_grid,
+        cv=cv,
+        n_jobs=-1,
+        scoring='accuracy',
+        n_iter=50,
+        random_state=42,
+        error_score=np.nan,
+    )
     clf.fit(X_train, y_train)
 
     #see results

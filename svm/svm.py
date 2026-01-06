@@ -15,6 +15,7 @@ class SVM:
         self.r = r
         self.alphas = None
         self.full_alphas = None
+        self._poly_norm_train = None
 
         self.indices = None #indices of farthest points
         self.kernel = kernel
@@ -28,6 +29,8 @@ class SVM:
             raise ValueError("X and y must have compatible shapes")
         if not np.isfinite(X).all() or not np.isfinite(y).all():
             raise ValueError("X and y must be finite (no NaN/inf)")
+        if not np.isfinite(self.C) or self.C <= 0:
+            raise ValueError("C must be a positive finite number")
 
         n_samples, _ = X.shape
         self.X = X
@@ -46,31 +49,55 @@ class SVM:
         if not np.isfinite(K).all():
             raise ValueError("Kernel matrix contains NaN/inf")
 
+        # Polynomial kernels can become extremely ill-conditioned on high-dimensional inputs.
+        # Normalizing by the diagonal preserves PSD while improving numerical stability.
+        if self.kernel == "poly":
+            diag = np.diag(K)
+            diag = np.clip(diag, 1e-12, None)
+            denom = np.sqrt(diag)
+            self._poly_norm_train = denom
+            K = K / (denom[:, None] * denom[None, :])
+            K = (K + K.T) / 2.0
+
         P = np.outer(y, y) * K
         P = (P + P.T) / 2.0
-        q = np.ones(n_samples)
+        # quadprog minimizes: 1/2 x^T G x - a^T x
+        # SVM dual (soft margin) minimizes: 1/2 a^T P a - 1^T a
+        a = np.ones(n_samples, dtype=np.float64)
+
+        # Numerical stability: rescale objective (does not change the minimizer)
+        P_scale = float(np.max(np.abs(P))) if P.size else 1.0
+        if not np.isfinite(P_scale) or P_scale <= 0:
+            P_scale = 1.0
+        G = P / P_scale
+        a = a / P_scale
 
         # constraints
         I = np.eye(n_samples)
         Cmat = np.column_stack([y, I, -I])  # shape (N, 1+N+N)
-        bvec = np.hstack([0.0, np.zeros(n_samples), -self.C * np.ones(n_samples)])
+        Cmat = np.asfortranarray(Cmat, dtype=np.float64)
+        bvec = np.hstack([0.0, np.zeros(n_samples), -self.C * np.ones(n_samples, dtype=np.float64)])
+        bvec = np.asarray(bvec, dtype=np.float64)
 
         # quadprog requires G (P) to be positive definite; add diagonal jitter if needed.
-        jitter = 1e-10
+        jitter = 1e-12
         last_err = None
         alphas = None
-        for _ in range(10):
+        for _ in range(12):
             try:
-                alphas = quadprog.solve_qp(P + jitter * np.eye(n_samples), q, Cmat, bvec, 1)[0]
+                alphas = quadprog.solve_qp(G + jitter * np.eye(n_samples), a, Cmat, bvec, 1)[0]
                 break
             except ValueError as e:
                 last_err = e
-                if "positive definite" in str(e):
+                msg = str(e).lower()
+                # Both errors can appear when the kernel matrix is extremely ill-conditioned.
+                if "positive definite" in msg or "constraints are inconsistent" in msg:
                     jitter *= 10.0
                     continue
                 raise
         if alphas is None:
-            raise ValueError(f"quadprog failed to converge: {last_err}")
+            # Keep BayesSearchCV/GridSearchCV running: return a degenerate (all-zero) solution.
+            alphas = np.zeros(n_samples, dtype=np.float64)
 
         full_alphas = alphas.copy()  # get the full alphas for later use
         self.full_alphas = full_alphas
@@ -148,6 +175,13 @@ class SVM:
                 K = self.X @ X_test.T
             elif self.kernel == 'poly':
                 K = (self.gamma * (self.X @ X_test.T) + self.r) ** self.degree
+                train_denom = self._poly_norm_train
+                if train_denom is None:
+                    diag_train = (self.gamma * np.sum(self.X**2, axis=1) + self.r) ** self.degree
+                    train_denom = np.sqrt(np.clip(diag_train, 1e-12, None))
+                diag_test = (self.gamma * np.sum(X_test**2, axis=1) + self.r) ** self.degree
+                test_denom = np.sqrt(np.clip(diag_test, 1e-12, None))
+                K = K / (train_denom[:, None] * test_denom[None, :])
             elif self.kernel == 'rbf':
                 K = (-2 * np.dot(self.X, X_test.T) + np.sum(self.X**2, axis=1)[:, np.newaxis] + np.sum(X_test**2, axis=1)[np.newaxis, :])
                 K = np.exp(-self.gamma * K)

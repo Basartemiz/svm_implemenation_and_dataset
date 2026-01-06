@@ -1,0 +1,7 @@
+classifier,status,train_time_sec,test_accuracy,params,error,n_train,n_test,n_features,pca_variance
+kNN,ok,0.001885166999997523,0.6104651162790697,"{""n_neighbors"": 5, ""weights"": ""distance"", ""metric"": ""euclidean""}",,686,172,185,0.95
+NaiveBayes,ok,0.0028363750000011123,0.6046511627906976,"{""var_smoothing"": 1e-09}",,686,172,185,0.95
+LogReg,ok,0.033408582999999936,0.43023255813953487,"{""C"": 0.000774263682681127, ""solver"": ""lbfgs"", ""max_iter"": 1000}",,686,172,185,0.95
+RandomForest,ok,0.7488055829999993,0.7965116279069767,"{""n_estimators"": 200, ""max_depth"": 20, ""min_samples_split"": 10, ""min_samples_leaf"": 1, ""random_state"": 42, ""n_jobs"": 1}",,686,172,185,0.95
+SVM (scratch),ok,1.8953694590000012,0.8023255813953488,"{""C"": 2.575, ""kernel"": ""poly"", ""gamma"": 0.01, ""degree"": 3, ""r"": 1}",,686,172,185,0.95
+LogReg (Poly),ok,4.366492208,0.813953488372093,"{""poly_degree"": 2, ""C"": 1.0, ""solver"": ""lbfgs"", ""max_iter"": 1000}",,686,172,185,0.95

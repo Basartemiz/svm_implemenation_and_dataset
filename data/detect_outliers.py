@@ -9,6 +9,9 @@ from sklearn.cluster import KMeans
 def detect_outliers(X, y):
     # Remove outliers using HDBSCAN each class separately
 
+    X_original = X
+    y_original = y
+
     final_X = []
     final_y = []
     for cls in np.unique(y):
@@ -27,12 +30,20 @@ def detect_outliers(X, y):
 
         final_X.append(X_cls[inlier_mask])
         final_y.append(y_cls[inlier_mask])
+    if len(final_X) == 0:
+        print("HDBSCAN outlier removal produced no inliers; skipping this step.")
+        return X, y
     X = np.vstack(final_X)
     y = np.hstack(final_y)
+    if X.shape[0] == 0:
+        print("HDBSCAN outlier removal produced zero inliers; skipping this step.")
+        return X_original, y_original
 
     print(f"Shape after HDBSCAN outlier removal: {X.shape}")
 
     # Further remove outliers within each class using KMeans
+    X_after_hdbscan = X
+    y_after_hdbscan = y
     final_X = []
     final_y = []
     for cls in np.unique(y):
@@ -52,8 +63,14 @@ def detect_outliers(X, y):
 
         final_X.append(X_cls[inlier_mask])
         final_y.append(y_cls[inlier_mask])
+    if len(final_X) == 0:
+        print("KMeans outlier removal produced no inliers; skipping this step.")
+        return X, y
     X = np.vstack(final_X)
     y = np.hstack(final_y)
+    if X.shape[0] == 0:
+        print("KMeans outlier removal produced zero inliers; skipping this step.")
+        return X_after_hdbscan, y_after_hdbscan
 
     print(f"Shape after KMeans outlier removal: {X.shape}")
     return X, y
@@ -82,3 +99,59 @@ def detect_outliers_isolation_forest(X, y):
 
     print(f"Shape after Isolation Forest outlier removal: {X.shape}")
     return X, y
+
+
+def detect_outliers_svm_slack(
+    X,
+    y,
+    *,
+    C=1.0,
+    kernel="rbf",
+    gamma=0.1,
+    degree=3,
+    r=1.0,
+    outlier_threshold_percentile=95,
+    verbose=True,
+):
+    """
+    Detect outliers via soft-margin SVM slack variables.
+
+    For each one-vs-rest classifier, compute slack:
+      ξᵢ = max(0, 1 - yᵢ f(xᵢ))
+    and mark points above a per-class percentile threshold as outliers.
+    """
+    from sklearn.preprocessing import StandardScaler
+    from svm.svm import MultiClassSVM
+
+    X = np.asarray(X)
+    y = np.asarray(y)
+    if X.shape[0] != y.shape[0]:
+        raise ValueError("X and y must have compatible shapes")
+    if X.shape[0] < 2:
+        return X, y
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    svm_model = MultiClassSVM(C=C, kernel=kernel, gamma=gamma, degree=degree, r=r)
+    svm_model.fit(X_scaled, y)
+
+    all_outliers = np.zeros(len(y), dtype=bool)
+    for cls in svm_model.classes_:
+        y_binary = np.where(y == cls, 1, -1)
+        decision_values = svm_model.models[cls].predict(X_scaled).reshape(-1)
+        slack = np.maximum(0, 1 - y_binary * decision_values)
+        threshold = np.percentile(slack, outlier_threshold_percentile)
+        flags = slack > threshold
+        all_outliers |= flags
+        if verbose:
+            print(
+                f"Class {cls}: {np.sum(flags)} outliers detected "
+                f"(threshold: {threshold:.4f}, max slack: {np.max(slack):.4f})"
+            )
+
+    inliers = ~all_outliers
+    X_clean = X[inliers]
+    y_clean = y[inliers]
+    print(f"Shape after SVM-slack outlier removal: {X_clean.shape}")
+    return X_clean, y_clean

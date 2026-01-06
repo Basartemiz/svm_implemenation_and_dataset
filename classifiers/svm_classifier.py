@@ -23,9 +23,9 @@ def main():
     X, y = load_data(data_path, image_size=(64, 64))
 
 
-    #remove outliers from the dataset using HDBSCAN and KMeans
-    from data.detect_outliers import detect_outliers
-    X, y = detect_outliers(X, y) # detect and remove outliers
+    # remove outliers using SVM slack variables (Task 1.4)
+    from data.detect_outliers import detect_outliers_svm_slack
+    X, y = detect_outliers_svm_slack(X, y, C=1.0, kernel="rbf", gamma=0.1, outlier_threshold_percentile=95)
 
 
     # split data into train and test sets
@@ -75,6 +75,7 @@ def main():
         n_iter=50,  # Can adjust: fewer than grid search (108 combinations) but more thorough
         n_jobs=-1, 
         scoring='accuracy',
+        error_score=np.nan,
         random_state=42,
         n_points=1,  # Number of random points to sample before using acquisition function
         verbose=1

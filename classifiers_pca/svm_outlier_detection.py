@@ -27,7 +27,7 @@ from data.preprocess import load_data
 from svm.svm import MultiClassSVM
 
 
-def compute_slack_variables(X, y, svm_model):
+def compute_slack_variables(X, y, svm_model, outlier_threshold_percentile=95):
     """
     Compute slack variables for each point using SVM constraints.
     
@@ -56,36 +56,16 @@ def compute_slack_variables(X, y, svm_model):
         # Get the corresponding SVM model
         svm_binary = svm_model.models[cls]
         
-        # Compute decision function values
-        # For each point, compute f(x) = w·x + b using kernel trick
-        if svm_binary.kernel == 'linear':
-            K = X_scaled @ svm_binary.sv_X.T
-            decision_values = np.dot(svm_binary.alphas * svm_binary.sv_y, K) + svm_binary.b
-        elif svm_binary.kernel == 'rbf':
-            # RBF kernel: K(x, x') = exp(-gamma * ||x - x'||^2)
-            gamma = svm_binary.gamma
-            X_norm = np.sum(X_scaled**2, axis=1)
-            sv_norm = np.sum(svm_binary.sv_X**2, axis=1)
-            sq_dists = X_norm[:, None] + sv_norm[None, :] - 2 * (X_scaled @ svm_binary.sv_X.T)
-            K = np.exp(-gamma * sq_dists)
-            decision_values = np.dot(svm_binary.alphas * svm_binary.sv_y, K) + svm_binary.b
-        elif svm_binary.kernel == 'poly':
-            # Polynomial kernel
-            gamma = svm_binary.gamma
-            r = svm_binary.r
-            degree = svm_binary.degree
-            K = (gamma * (X_scaled @ svm_binary.sv_X.T) + r) ** degree
-            decision_values = np.dot(svm_binary.alphas * svm_binary.sv_y, K) + svm_binary.b
-        else:
-            raise ValueError(f"Unsupported kernel: {svm_binary.kernel}")
+        # Compute decision function values f(x) using the model's own predict()
+        # (returns raw decision values, not class labels).
+        decision_values = svm_binary.predict(X_scaled).reshape(-1)
         
         # Compute slack: ξ = max(0, 1 - y * f(x))
         slack = np.maximum(0, 1 - y_binary * decision_values)
         slack_values[cls] = slack
         
         # Identify outliers: points with slack > threshold
-        # Use percentile-based threshold (e.g., 95th percentile)
-        threshold = np.percentile(slack, 95)
+        threshold = np.percentile(slack, outlier_threshold_percentile)
         outlier_flags[cls] = slack > threshold
         
         print(f"Class {cls}: {np.sum(outlier_flags[cls])} outliers detected "
@@ -134,7 +114,10 @@ def detect_outliers_svm(X, y, C=1.0, kernel='rbf', gamma=0.1, outlier_threshold_
     # Compute slack variables on training set
     print("\nComputing slack variables...")
     slack_values, outlier_flags = compute_slack_variables(
-        X_train_scaled, y_train, svm_model
+        X_train_scaled,
+        y_train,
+        svm_model,
+        outlier_threshold_percentile=outlier_threshold_percentile,
     )
     
     # Combine outlier flags across all classes
@@ -304,4 +287,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

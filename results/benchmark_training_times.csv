@@ -1,0 +1,7 @@
+classifier,status,train_time_sec,test_accuracy,params,error,n_train,n_test,n_features
+kNN,ok,0.13990799999999126,0.6722972972972973,"{""n_neighbors"": 5, ""weights"": ""distance"", ""metric"": ""euclidean""}",,1182,296,12288
+NaiveBayes,ok,0.2701852910000184,0.4966216216216216,"{""var_smoothing"": 1e-09}",,1182,296,12288
+RandomForest,ok,6.617663917000016,0.7128378378378378,"{""n_estimators"": 200, ""max_depth"": null, ""min_samples_split"": 5, ""min_samples_leaf"": 1, ""random_state"": 42, ""n_jobs"": 1}",,1182,296,12288
+SVM (scratch),ok,11.280960375000006,0.7364864864864865,"{""C"": 50.00005, ""kernel"": ""rbf"", ""gamma"": 0.0001, ""degree"": 2, ""r"": 0.1}",,1182,296,12288
+LogReg,ok,296.079607334,0.625,"{""C"": 0.000774263682681127, ""solver"": ""lbfgs"", ""max_iter"": 1000}",,1182,296,12288
+LogReg (Poly),skipped,,,"{""poly_degree"": 2, ""C"": 1.0, ""solver"": ""lbfgs"", ""max_iter"": 1000}",PolynomialFeatures on raw pixels is infeasible; run the PCA benchmark instead.,1182,296,12288
