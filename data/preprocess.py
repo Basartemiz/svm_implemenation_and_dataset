@@ -12,12 +12,27 @@ def load_data(path,image_size=(64,64)):
     X = []
     y = []
     label_map = {fruit: idx for idx, fruit in enumerate(fruit_folders)}
+    
+    # Valid image file extensions
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff', '.tif'}
+    
+    # Files to skip (system files)
+    skip_files = {'.DS_Store', 'Thumbs.db'}
 
     for fruit in fruit_folders:
         folder_path = os.path.join(path, fruit)
         if not os.path.exists(folder_path):
             continue
         for img_name in os.listdir(folder_path):
+            # Skip hidden/system files
+            if img_name.startswith('.') or img_name in skip_files:
+                continue
+            
+            # Check if file has valid image extension
+            _, ext = os.path.splitext(img_name.lower())
+            if ext not in valid_extensions:
+                continue
+            
             img_path = os.path.join(folder_path, img_name)
             try:
                 img = Image.open(img_path).convert('RGB')

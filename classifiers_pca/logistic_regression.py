@@ -1,9 +1,13 @@
+import warnings
+import os
+import sys
+
+# Suppress warnings before any imports
+warnings.filterwarnings('ignore')
+
 try:
     from data.preprocess import load_data
 except ImportError:  
-    import os
-    import sys
-
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
@@ -17,8 +21,6 @@ from sklearn.metrics import accuracy_score
 
 def main():
     # get data (X,y)
-    import os
-
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     data_path = os.path.join(project_root, "data", "fruit_images")
     X, y = load_data(data_path, image_size=(64, 64))
@@ -55,14 +57,20 @@ def main():
 
     cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    from sklearn.model_selection import GridSearchCV
+    from skopt import BayesSearchCV
+    from skopt.space import Real, Categorical
+    
+    param_grid = {
+        'log_reg__C': Real(1e-4, 1e4, prior='log-uniform'),
+        'log_reg__solver': Categorical(['liblinear', 'lbfgs'])
+    }
 
-    clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
+    clf = BayesSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1, scoring='accuracy', n_iter=30, random_state=42)
     clf.fit(X_train, y_train)
 
     #see results
 
-    print("Best parameters found: ", clf.best_params_)
+    print(f"\nBest parameters found: C={clf.best_params_['log_reg__C']:.4f}, solver={clf.best_params_['log_reg__solver']}")
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Test set accuracy: {accuracy * 100:.2f}%")
@@ -84,9 +92,9 @@ def main():
         zip(results["mean_test_score"], results["params"]), reverse=True,
         key=lambda x: x[0]
     )
-    print("\nAll model results (sorted by accuracy):")
-    for mean_score, params in results_sorted:
-        print(f"Accuracy: {mean_score:.4f} | Parameters: {params}")
+    print("\nTop 10 model results (sorted by accuracy):")
+    for idx, (mean_score, params) in enumerate(results_sorted[:10], 1):
+        print(f"{idx:2d}. Accuracy: {mean_score:.4f} | C: {params['log_reg__C']:.4f}, Solver: {params['log_reg__solver']}")
     
     #save results to a csv file
     import pandas as pd

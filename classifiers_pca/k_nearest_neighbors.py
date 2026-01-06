@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
 try:
     from data.preprocess import load_data
 except ImportError:  
@@ -49,14 +52,21 @@ def main():
 
     cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    from sklearn.model_selection import GridSearchCV
+    from skopt import BayesSearchCV
+    from skopt.space import Integer, Categorical
+    
+    param_grid = {
+        'knn__n_neighbors': Integer(1, 30),
+        'knn__weights': Categorical(['uniform', 'distance']),
+        'knn__metric': Categorical(['euclidean', 'manhattan'])
+    }
 
-    clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
+    clf = BayesSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1, scoring='accuracy', n_iter=50, random_state=42)
     clf.fit(X_train, y_train)
 
     #see results
 
-    print("Best parameters found: ", clf.best_params_)
+    print(f"\nBest parameters found: {clf.best_params_}")
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Test set accuracy: {accuracy * 100:.2f}%")
@@ -79,14 +89,16 @@ def main():
     key=lambda x: x[0],  
     reverse=True
 )
-    print("\nAll model results (sorted by accuracy):")
-    for mean_score, params in results_sorted:
-        print(f"Accuracy: {mean_score:.4f} | Parameters: {params}")
+    print("\nTop 10 model results (sorted by accuracy):")
+    for idx, (mean_score, params) in enumerate(results_sorted[:10], 1):
+        print(f"{idx:2d}. Accuracy: {mean_score:.4f} | k={params['knn__n_neighbors']}, weights={params['knn__weights']}, metric={params['knn__metric']}")
     
     #save results to a csv file
     import pandas as pd
     results_df = pd.DataFrame(results)
-    results_df.to_csv("/results/k_nearest_neighbors_results.csv", index=False)
+    results_dir = os.path.join(project_root, "results")
+    os.makedirs(results_dir, exist_ok=True)
+    results_df.to_csv(os.path.join(results_dir, "k_nearest_neighbors_results.csv"), index=False)
 
     
 if __name__ == "__main__":

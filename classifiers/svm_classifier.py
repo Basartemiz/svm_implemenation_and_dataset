@@ -40,23 +40,44 @@ def main():
         ]
     )
 
-    parameters={
-        'svm__C':np.linspace(0.0001,100,3),
-        'svm__kernel': ['linear', 'rbf', 'poly'], 
-        'svm__degree': [2,3] , # only used for 'poly' kernel
-        'svm__gamma': np.linspace(0.0001,1,3),
-        'svm__r':[0.1, 1]  # only used for 'rbf' and 'poly' kernels
+    # Bayesian optimization search space
+    # Using continuous distributions for C and gamma, categorical for kernel
+    from skopt.space import Real, Categorical, Integer
+    
+    search_space = {
+        'svm__C': Real(0.0001, 100, prior='log-uniform'),  # log-uniform for C (common practice)
+        'svm__kernel': Categorical(['linear', 'rbf', 'poly']), 
+        'svm__degree': Integer(2, 3),  # only used for 'poly' kernel
+        'svm__gamma': Real(0.0001, 1, prior='log-uniform'),  # log-uniform for gamma
+        'svm__r': Real(0.1, 1)  # only used for 'rbf' and 'poly' kernels
     }
 
-    # An example of best parameters found in previous runs:
-    best_parameters = {'svm__C': np.float64(50.00005), 'svm__degree': 2, 'svm__gamma': np.float64(0.0001), 'svm__kernel': 'rbf', 'svm__r': 0.1}
+    # An example of best parameters found in previous runs (for reference):
+    # best_parameters = {'svm__C': np.float64(50.00005), 'svm__degree': 2, 'svm__gamma': np.float64(0.0001), 'svm__kernel': 'rbf', 'svm__r': 0.1}
 
-    cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    from sklearn.model_selection import GridSearchCV
+    from skopt import BayesSearchCV
 
-    #clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
-    #clf.fit(X_train, y_train)
+    # Bayesian optimization: typically needs fewer iterations than grid search
+    # n_iter controls number of iterations (default is 50, but can be adjusted)
+    # n_points=1 means evaluate 1 random point before using acquisition function
+    clf = BayesSearchCV(
+        pipeline, 
+        search_space, 
+        cv=cv, 
+        n_iter=50,  # Can adjust: fewer than grid search (108 combinations) but more thorough
+        n_jobs=-1, 
+        scoring='accuracy',
+        random_state=42,
+        n_points=1,  # Number of random points to sample before using acquisition function
+        verbose=1
+    )
+    
+    print("Starting Bayesian optimization...")
+    clf.fit(X_train, y_train)
+    best_parameters = clf.best_params_
+    
     # Use best parameters to create the model directly
     svm_model = MultiClassSVM(
         C=best_parameters['svm__C'],
@@ -69,7 +90,10 @@ def main():
     #see results
 
     print("Best parameters found: ", best_parameters)
-    pipeline.fit(X_train, y_train)
+    print(f"Best cross-validation score: {clf.best_score_:.4f}")
+    
+    # Use the best estimator from the search
+    pipeline = clf.best_estimator_
     y_pred = pipeline.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"SVM Test Accuracy: {accuracy*100:.2f}%")

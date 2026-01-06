@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore', category=UserWarning)
+
 try:
     from data.preprocess import load_data
     from data.detect_outliers import detect_outliers
@@ -61,14 +64,22 @@ def main():
 
     cv=StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    from sklearn.model_selection import GridSearchCV
+    from skopt import BayesSearchCV
+    from skopt.space import Integer, Categorical
+    
+    param_grid = {
+        'rf__n_estimators': Integer(50, 200),
+        'rf__max_depth': Categorical([None, 10, 20, 30]),
+        'rf__min_samples_split': Integer(2, 10),
+        'rf__min_samples_leaf': Integer(1, 4)
+    }
 
-    clf = GridSearchCV(pipeline, parameters, cv=cv, n_jobs=-1, scoring='accuracy')
+    clf = BayesSearchCV(pipeline, param_grid, cv=cv, n_jobs=-1, scoring='accuracy', n_iter=50, random_state=42)
     clf.fit(X_train, y_train)
 
     #see results
 
-    print("Best parameters found: ", clf.best_params_)
+    print(f"\nBest parameters found: {clf.best_params_}")
     y_pred = clf.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     print(f"Test set accuracy: {accuracy * 100:.2f}%")
@@ -91,9 +102,10 @@ def main():
     key=lambda x: x[0],  
     reverse=True
 )
-    print("\nAll model results (sorted by accuracy):")
-    for mean_score, params in results_sorted:
-        print(f"Accuracy: {mean_score:.4f} | Parameters: {params}")
+    print("\nTop 10 model results (sorted by accuracy):")
+    for idx, (mean_score, params) in enumerate(results_sorted[:10], 1):
+        rf_params = {k.replace('rf__', ''): v for k, v in params.items()}
+        print(f"{idx:2d}. Accuracy: {mean_score:.4f} | {rf_params}")
     
     
 
